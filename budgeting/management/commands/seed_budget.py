@@ -10,15 +10,24 @@ from datetime import date
 class Command(BaseCommand):
     help = 'Seeds the database with default categories and recurring expenses'
 
+    def add_arguments(self, parser):
+        parser.add_argument('--username', type=str, default='admin', help='Username for the seeded user')
+        parser.add_argument('--password', type=str, default='admin123', help='Password for the seeded user')
+
     def handle(self, *args, **options):
+        username = options['username']
+        password = options['password']
+
         # Create a default user if none exists
-        user, created = User.objects.get_or_create(username='admin')
+        user, created = User.objects.get_or_create(username=username)
         if created:
-            user.set_password('admin123')
+            user.set_password(password)
             user.is_staff = True
             user.is_superuser = True
             user.save()
             self.stdout.write(self.style.SUCCESS(f'Created user: {user.username}'))
+        else:
+            self.stdout.write(self.style.NOTICE(f'Using existing user: {user.username}'))
 
         data_file = os.path.join(settings.BASE_DIR, 'seed_data.json')
         example_file = os.path.join(settings.BASE_DIR, 'seed_data.example.json')

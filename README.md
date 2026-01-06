@@ -66,7 +66,13 @@ python manage.py seed_budget
    python manage.py seed_budget
    ```
 
-*Note: The `seed_budget` command also creates a default admin user (`admin`/`admin123`) if one doesn't exist. `seed_data.json` is ignored by Git to keep your financial data private.*
+**Custom Credentials**
+By default, the seed command creates an admin user with the credentials `admin`/`admin123`. You can specify custom credentials using arguments:
+```bash
+python manage.py seed_budget --username yourname --password yourpassword
+```
+
+*Note: The `seed_budget` command creates the user only if it doesn't exist. `seed_data.json` is ignored by Git to keep your financial data private.*
 
 ### 4. Run the App
 ```bash
