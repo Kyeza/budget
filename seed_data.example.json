@@ -1,0 +1,27 @@
+{
+  "net_income": 3000.00,
+  "categories": [
+    {
+      "name": "Housing",
+      "items": [
+        {"name": "Rent/Mortgage", "amount": 1000.00},
+        {"name": "Electricity", "amount": 50.00},
+        {"name": "Water", "amount": 30.00}
+      ]
+    },
+    {
+      "name": "Transportation",
+      "items": [
+        {"name": "Car Loan", "amount": 200.00},
+        {"name": "Fuel", "amount": 100.00}
+      ]
+    },
+    {
+      "name": "Subscriptions",
+      "items": [
+        {"name": "Streaming Service", "amount": 15.00},
+        {"name": "Gym", "amount": 40.00}
+      ]
+    }
+  ]
+}

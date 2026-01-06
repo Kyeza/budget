@@ -151,3 +151,6 @@ cython_debug/
 #  JetBrains specific template is maintained in a separate repository:
 #  https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
 .idea/
+
+# Local Seed Data
+seed_data.json

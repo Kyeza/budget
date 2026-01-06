@@ -35,18 +35,38 @@ To prevent retroactive changes, the app uses a **snapshotting** approach:
 ### 2. Installation
 Clone the repository and install the dependencies:
 ```bash
-git clone https://github.com/yourusername/budget-app.git
-cd budget-app
+git clone https://github.com/yourusername/budget.git
+cd budget
 pip install -r requirements.txt
 ```
 
-### 3. Setup Database
-Run the migrations and seed default data:
+### 3. Setup Database & Seed Data
+Run the migrations:
 ```bash
 python manage.py migrate
+```
+
+#### Seeding Options
+The project uses a custom management command to seed categories and recurring expenses.
+
+**Option A: Use Example Data (Quick Start)**
+Run the seed command directly. It will automatically use `seed_data.example.json` if your personal data file is missing:
+```bash
 python manage.py seed_budget
 ```
-*The `seed_budget` command creates a default admin user (`admin`/`admin123`) and populates global templates.*
+
+**Option B: Use Personal Data (Recommended)**
+1. Copy the example file to create your own:
+   ```bash
+   cp seed_data.example.json seed_data.json
+   ```
+2. Edit `seed_data.json` with your personal categories and expenses.
+3. Run the seed command:
+   ```bash
+   python manage.py seed_budget
+   ```
+
+*Note: The `seed_budget` command also creates a default admin user (`admin`/`admin123`) if one doesn't exist. `seed_data.json` is ignored by Git to keep your financial data private.*
 
 ### 4. Run the App
 ```bash
