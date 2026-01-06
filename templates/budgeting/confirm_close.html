@@ -1,0 +1,9 @@
+{% extends 'budgeting/base.html' %}
+{% block content %}
+<h1>Close Month {{ month }}</h1>
+<div class="alert alert-warning">Are you sure you want to close this month? You will no longer be able to edit income, categories, or expenses.</div>
+<form method="post">{% csrf_token %}
+  <button class="btn btn-danger" type="submit">Yes, Close Month</button>
+  <a class="btn btn-secondary" href="{% url 'budgeting:month_detail' month.id %}">Cancel</a>
+</form>
+{% endblock %}

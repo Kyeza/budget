@@ -1,0 +1,27 @@
+{% extends 'budgeting/base.html' %}
+{% block content %}
+<h1>Delete Category: {{ category.name }}</h1>
+<div class="alert alert-warning">
+    Are you sure you want to delete this category for <strong>{{ month }}</strong>?
+</div>
+
+<form method="post">{% csrf_token %}
+    {% if has_expenses %}
+        <div class="card mb-3 border-danger">
+            <div class="card-body">
+                <h5 class="card-title text-danger">Reassign Expenses</h5>
+                <p>This category has expenses. Please choose a new category to move them to:</p>
+                <select name="reassign_to" class="form-select" required>
+                    <option value="">-- Choose Category --</option>
+                    {% for cat in other_categories %}
+                        <option value="{{ cat.id }}">{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    {% endif %}
+
+    <button class="btn btn-danger" type="submit">Delete Category</button>
+    <a class="btn btn-secondary" href="{% url 'budgeting:month_detail' month.id %}">Cancel</a>
+</form>
+{% endblock %}

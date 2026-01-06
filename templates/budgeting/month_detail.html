@@ -1,0 +1,97 @@
+{% extends 'budgeting/base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1>Month {{ month }}</h1>
+  <div>
+    {% if month.status == 'open' %}
+      <a href="{% url 'budgeting:category_add' month.id %}" class="btn btn-sm btn-outline-success">Add Category</a>
+      <a href="{% url 'budgeting:variable_add' month.id %}" class="btn btn-sm btn-outline-primary">Add Variable Expense</a>
+      <a href="{% url 'budgeting:month_close' month.id %}" class="btn btn-sm btn-outline-danger">Close Month</a>
+    {% else %}
+      <span class="badge bg-secondary">Closed</span>
+    {% endif %}
+  </div>
+</div>
+
+<div class="row mb-3">
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Income</h5>
+        {% if month.status == 'open' %}
+          <form method="post">{% csrf_token %}
+            {{ income_form.as_p }}
+            <button class="btn btn-primary" type="submit">Update Income</button>
+          </form>
+        {% else %}
+          <p>£{{ month.net_income }}</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Totals</h5>
+        <div class="row">
+          <div class="col">Recurring: <strong>£{{ month.total_recurring }}</strong></div>
+          <div class="col">Variable: <strong>£{{ month.total_variable }}</strong></div>
+          <div class="col">Total: <strong>£{{ month.total_expenses }}</strong></div>
+          <div class="col">Balance: <strong>£{{ month.balance }}</strong></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% for row in category_rows %}
+  <div class="card mb-3">
+    <div class="card-header d-flex justify-content-between">
+      <div>
+        <strong>{{ row.category.name }}</strong>
+        {% if month.status == 'open' %}
+          <a href="{% url 'budgeting:category_edit' row.category.id %}" class="btn btn-sm btn-link py-0">Edit</a>
+          <a href="{% url 'budgeting:category_delete' row.category.id %}" class="btn btn-sm btn-link py-0 text-danger">Delete</a>
+        {% endif %}
+      </div>
+      <span>Recurring £{{ row.recurring_total }} | Variable £{{ row.variable_total }}</span>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-6">
+          <h6>Recurring</h6>
+          <ul class="list-group">
+            {% for r in row.recurring %}
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                {{ r.name }}
+                <span>
+                  £{{ r.amount }}
+                  {% if month.status == 'open' %}
+                    <a class="btn btn-sm btn-outline-secondary ms-2" href="{% url 'budgeting:recurring_edit' r.id %}">Edit</a>
+                  {% endif %}
+                </span>
+              </li>
+            {% empty %}
+              <li class="list-group-item">None</li>
+            {% endfor %}
+          </ul>
+        </div>
+        <div class="col-md-6">
+          <h6>Variable</h6>
+          <ul class="list-group">
+            {% for v in row.variable %}
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                <span>{{ v.date }} — {{ v.name }}</span>
+                <span>£{{ v.amount }}</span>
+              </li>
+            {% empty %}
+              <li class="list-group-item">None</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endfor %}
+
+{% endblock %}

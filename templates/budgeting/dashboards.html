@@ -1,0 +1,83 @@
+{% extends 'budgeting/base.html' %}
+{% block content %}
+<h1>Dashboards</h1>
+
+<h3>Recent Trend</h3>
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th>Month</th><th>Income</th><th>Recurring</th><th>Variable</th><th>Total</th><th>Balance</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for t in trend %}
+    <tr>
+      <td>{{ t.month }}</td>
+      <td>£{{ t.income }}</td>
+      <td>£{{ t.recurring }}</td>
+      <td>£{{ t.variable }}</td>
+      <td>£{{ t.total }}</td>
+      <td>£{{ t.balance }}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="6" class="text-center">No data yet</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<div class="row">
+    <div class="col-md-6">
+        <h3>Top Spending Items (Variable)</h3>
+        <ul class="list-group">
+        {% for item in top_variable %}
+            <li class="list-group-item d-flex justify-content-between">
+                {{ item.name }}
+                <strong>£{{ item.total }}</strong>
+            </li>
+        {% empty %}
+            <li class="list-group-item">No data yet</li>
+        {% endfor %}
+        </ul>
+    </div>
+    <div class="col-md-6">
+        <h3>Category Breakdown ({{ latest_month }})</h3>
+        <table class="table table-sm">
+            <thead>
+                <tr><th>Category</th><th>Rec.</th><th>Var.</th><th>Total</th></tr>
+            </thead>
+            <tbody>
+            {% for c in category_breakdown %}
+                <tr>
+                    <td>{{ c.name }}</td>
+                    <td>£{{ c.recurring }}</td>
+                    <td>£{{ c.variable }}</td>
+                    <td>£{{ c.total }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<h3>Forecast (next {{ forecast|length }} months)</h3>
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th>Month</th><th>Recurring</th><th>Variable Est.</th><th>Total</th><th>Est. Balance</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for f in forecast %}
+    <tr>
+      <td>{{ f.month|date:'Y-m' }}</td>
+      <td>£{{ f.recurring_total }}</td>
+      <td>£{{ f.variable_estimate }}</td>
+      <td>£{{ f.total_expenses }}</td>
+      <td>£{{ f.balance }}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="5" class="text-center">No forecast available</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
