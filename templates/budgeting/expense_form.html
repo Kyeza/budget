@@ -1,0 +1,41 @@
+{% extends 'budgeting/base.html' %}
+{% block content %}
+<h1>{% if form.instance.pk %}Edit{% else %}Add{% endif %} Item — {{ month }}</h1>
+<div class="card">
+    <div class="card-body">
+        <form method="post">{% csrf_token %}
+          {{ form.as_p }}
+          <div class="mt-3">
+              <button class="btn btn-primary" type="submit">Save</button>
+              <a class="btn btn-secondary" href="{% url 'budgeting:month_detail' month.id %}">Cancel</a>
+          </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Simple script to show/hide date based on expense type
+    document.addEventListener('DOMContentLoaded', function() {
+        const typeSelect = document.querySelector('select[name="expense_type"]');
+        const dateInput = document.querySelector('input[name="date"]');
+        const dateField = dateInput ? dateInput.closest('p') : null;
+        const enabledInput = document.querySelector('input[name="enabled"]');
+        const enabledField = enabledInput ? enabledInput.closest('p') : null;
+
+        function toggleFields() {
+            if (typeSelect.value === 'variable') {
+                if (dateField) dateField.style.display = 'block';
+                if (enabledField) enabledField.style.display = 'none';
+            } else {
+                if (dateField) dateField.style.display = 'none';
+                if (enabledField) enabledField.style.display = 'block';
+            }
+        }
+
+        if (typeSelect) {
+            typeSelect.addEventListener('change', toggleFields);
+            toggleFields();
+        }
+    });
+</script>
+{% endblock %}

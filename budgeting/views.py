@@ -11,12 +11,12 @@ from django.views import View
 from django.views.generic import ListView, DetailView
 
 from django.db import models
-from .forms import MonthBudgetIncomeForm, VariableExpenseForm, RecurringExpenseForm, MonthCategoryForm
+from .forms import MonthBudgetIncomeForm, MonthExpenseForm, MonthCategoryForm
 from .models import (
     MonthBudget,
     MonthCategory,
-    MonthRecurringExpense,
-    MonthVariableExpense,
+    MonthExpense,
+    ExpenseType,
     MonthStatus,
     create_month_with_defaults,
     forecast_months,
@@ -61,14 +61,19 @@ class MonthDetailView(DetailView):
         ctx["income_form"] = MonthBudgetIncomeForm(instance=month)
         # Group data by category
         categories = MonthCategory.objects.filter(month_budget=month).order_by("sort_order", "name")
+        
+        expenses = MonthExpense.objects.filter(month_category__month_budget=month).order_by(
+            "month_category__sort_order", "expense_type", "name"
+        )
+        
         recurring_by_cat = {}
         variable_by_cat = {}
-        for r in MonthRecurringExpense.objects.filter(month_category__month_budget=month).order_by(
-            "month_category__sort_order", "name"
-        ):
-            recurring_by_cat.setdefault(r.month_category_id, []).append(r)
-        for v in MonthVariableExpense.objects.filter(month_category__month_budget=month).order_by("-date"):
-            variable_by_cat.setdefault(v.month_category_id, []).append(v)
+        for e in expenses:
+            if e.expense_type == ExpenseType.RECURRING:
+                recurring_by_cat.setdefault(e.month_category_id, []).append(e)
+            else:
+                variable_by_cat.setdefault(e.month_category_id, []).append(e)
+
         rows = []
         for c in categories:
             rows.append({
@@ -111,41 +116,67 @@ def close_month_view(request: HttpRequest, pk: int) -> HttpResponse:
 
 
 @login_required
-def variable_add_view(request: HttpRequest, month_id: int) -> HttpResponse:
+def expense_add_view(request: HttpRequest, month_id: int) -> HttpResponse:
     mb = get_object_or_404(MonthBudget, pk=month_id, user=request.user)
     if mb.status == MonthStatus.CLOSED:
         return HttpResponseForbidden("Month is closed")
     if request.method == "POST":
-        form = VariableExpenseForm(request.POST, month_budget=mb)
+        form = MonthExpenseForm(request.POST, month_budget=mb)
         if form.is_valid():
             v = form.save(commit=False)
+            v.month_budget = mb
             # Ensure chosen category belongs to this month
             if v.month_category.month_budget_id != mb.id:
                 messages.error(request, "Invalid category selection")
             else:
                 v.save()
-                messages.success(request, "Variable expense added.")
+                messages.success(request, f"{v.get_expense_type_display()} expense added.")
                 return redirect("budgeting:month_detail", pk=mb.pk)
     else:
-        form = VariableExpenseForm(month_budget=mb)
-    return render(request, "budgeting/variable_form.html", {"form": form, "month": mb})
+        initial = {}
+        if request.GET.get('type') == 'variable':
+            initial['expense_type'] = ExpenseType.VARIABLE
+        cat_id = request.GET.get('category')
+        if cat_id:
+            initial['month_category'] = cat_id
+        form = MonthExpenseForm(month_budget=mb, initial=initial)
+    return render(request, "budgeting/expense_form.html", {"form": form, "month": mb})
 
 
 @login_required
-def recurring_edit_view(request: HttpRequest, pk: int) -> HttpResponse:
-    r = get_object_or_404(MonthRecurringExpense, pk=pk, month_category__month_budget__user=request.user)
-    mb = r.month_category.month_budget
+def expense_edit_view(request: HttpRequest, pk: int) -> HttpResponse:
+    e = get_object_or_404(MonthExpense, pk=pk, month_category__month_budget__user=request.user)
+    mb = e.month_category.month_budget
     if mb.status == MonthStatus.CLOSED:
         return HttpResponseForbidden("Month is closed")
     if request.method == "POST":
-        form = RecurringExpenseForm(request.POST, instance=r)
+        form = MonthExpenseForm(request.POST, instance=e)
         if form.is_valid():
             form.save()
-            messages.success(request, "Recurring item updated.")
+            messages.success(request, "Expense updated.")
             return redirect("budgeting:month_detail", pk=mb.pk)
     else:
-        form = RecurringExpenseForm(instance=r)
-    return render(request, "budgeting/recurring_form.html", {"form": form, "item": r, "month": mb})
+        form = MonthExpenseForm(instance=e)
+    return render(request, "budgeting/expense_form.html", {"form": form, "item": e, "month": mb})
+
+
+@login_required
+def expense_toggle_type_view(request: HttpRequest, pk: int) -> HttpResponse:
+    expense = get_object_or_404(MonthExpense, pk=pk, month_category__month_budget__user=request.user)
+    month = expense.month_category.month_budget
+    if month.status == MonthStatus.CLOSED:
+        return HttpResponseForbidden("Month is closed")
+
+    if expense.expense_type == ExpenseType.RECURRING:
+        expense.expense_type = ExpenseType.VARIABLE
+        expense.date = month.month
+    else:
+        expense.expense_type = ExpenseType.RECURRING
+        expense.date = None
+
+    expense.save()
+    messages.success(request, f"Item '{expense.name}' changed to {expense.get_expense_type_display()}.")
+    return redirect("budgeting:month_detail", pk=month.id)
 
 
 @login_required
@@ -191,10 +222,7 @@ def category_delete_view(request: HttpRequest, pk: int) -> HttpResponse:
         return HttpResponseForbidden("Month is closed")
     
     # Check if there are expenses in this category
-    has_expenses = (
-        cat.monthrecurringexpense_set.exists() or 
-        cat.monthvariableexpense_set.exists()
-    )
+    has_expenses = cat.monthexpense_set.exists()
     
     if request.method == "POST":
         reassign_to_id = request.POST.get("reassign_to")
@@ -203,8 +231,7 @@ def category_delete_view(request: HttpRequest, pk: int) -> HttpResponse:
         else:
             if reassign_to_id:
                 target_cat = get_object_or_404(MonthCategory, pk=reassign_to_id, month_budget=mb)
-                cat.monthrecurringexpense_set.update(month_category=target_cat)
-                cat.monthvariableexpense_set.update(month_category=target_cat)
+                cat.monthexpense_set.update(month_category=target_cat)
             cat.delete()
             messages.success(request, "Category deleted.")
             return redirect("budgeting:month_detail", pk=mb.pk)
@@ -242,7 +269,10 @@ class DashboardsView(View):
 
         # Top spending items (variable)
         top_variable = (
-            MonthVariableExpense.objects.filter(month_category__month_budget__user=request.user)
+            MonthExpense.objects.filter(
+                month_category__month_budget__user=request.user,
+                expense_type=ExpenseType.VARIABLE
+            )
             .values("name")
             .annotate(total=models.Sum("amount"))
             .order_by("-total")[:10]
@@ -254,12 +284,17 @@ class DashboardsView(View):
         if latest:
             for cat in latest.monthcategory_set.all():
                 rec = (
-                    cat.monthrecurringexpense_set.filter(enabled=True)
+                    cat.monthexpense_set.filter(enabled=True, expense_type=ExpenseType.RECURRING)
                     .aggregate(s=models.Sum("amount"))
                     .get("s")
                     or 0
                 )
-                var = cat.monthvariableexpense_set.aggregate(s=models.Sum("amount")).get("s") or 0
+                var = (
+                    cat.monthexpense_set.filter(expense_type=ExpenseType.VARIABLE)
+                    .aggregate(s=models.Sum("amount"))
+                    .get("s")
+                    or 0
+                )
                 category_breakdown.append({
                     "name": cat.name,
                     "recurring": rec,

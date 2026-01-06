@@ -6,7 +6,7 @@
   <div>
     {% if month.status == 'open' %}
       <a href="{% url 'budgeting:category_add' month.id %}" class="btn btn-sm btn-outline-success">Add Category</a>
-      <a href="{% url 'budgeting:variable_add' month.id %}" class="btn btn-sm btn-outline-primary">Add Variable Expense</a>
+      <a href="{% url 'budgeting:expense_add' month.id %}" class="btn btn-sm btn-outline-primary">Add Item</a>
       <a href="{% url 'budgeting:month_close' month.id %}" class="btn btn-sm btn-outline-danger">Close Month</a>
     {% else %}
       <span class="badge bg-secondary">Closed</span>
@@ -47,7 +47,7 @@
 
 {% for row in category_rows %}
   <div class="card mb-3">
-    <div class="card-header d-flex justify-content-between">
+    <div class="card-header d-flex justify-content-between align-items-center">
       <div>
         <strong>{{ row.category.name }}</strong>
         {% if month.status == 'open' %}
@@ -55,7 +55,13 @@
           <a href="{% url 'budgeting:category_delete' row.category.id %}" class="btn btn-sm btn-link py-0 text-danger">Delete</a>
         {% endif %}
       </div>
-      <span>Recurring £{{ row.recurring_total|floatformat:2|intcomma }} | Variable £{{ row.variable_total|floatformat:2|intcomma }}</span>
+      <div>
+        <span class="badge bg-light text-dark">Recurring £{{ row.recurring_total|floatformat:2|intcomma }}</span>
+        <span class="badge bg-light text-dark">Variable £{{ row.variable_total|floatformat:2|intcomma }}</span>
+        {% if month.status == 'open' %}
+            <a href="{% url 'budgeting:expense_add' month.id %}?category={{ row.category.id }}" class="btn btn-sm btn-outline-primary ms-2">+ Add Item</a>
+        {% endif %}
+      </div>
     </div>
     <div class="card-body">
       <div class="row">
@@ -64,11 +70,14 @@
           <ul class="list-group">
             {% for r in row.recurring %}
               <li class="list-group-item d-flex justify-content-between align-items-center">
-                {{ r.name }}
+                <span>
+                    <span class="{% if not r.enabled %}text-decoration-line-through text-muted{% endif %}">{{ r.name }}</span>
+                </span>
                 <span>
                   £{{ r.amount|floatformat:2|intcomma }}
                   {% if month.status == 'open' %}
-                    <a class="btn btn-sm btn-outline-secondary ms-2" href="{% url 'budgeting:recurring_edit' r.id %}">Edit</a>
+                    <a class="btn btn-sm btn-outline-secondary ms-2" href="{% url 'budgeting:expense_edit' r.id %}">Edit</a>
+                    <a class="btn btn-sm btn-outline-info" href="{% url 'budgeting:expense_toggle_type' r.id %}" title="Change to Variable">⇄</a>
                   {% endif %}
                 </span>
               </li>
@@ -82,8 +91,14 @@
           <ul class="list-group">
             {% for v in row.variable %}
               <li class="list-group-item d-flex justify-content-between align-items-center">
-                <span>{{ v.date }} — {{ v.name }}</span>
-                <span>£{{ v.amount|floatformat:2|intcomma }}</span>
+                <span>{{ v.date|date:"d M" }} — {{ v.name }}</span>
+                <span>
+                    £{{ v.amount|floatformat:2|intcomma }}
+                    {% if month.status == 'open' %}
+                      <a class="btn btn-sm btn-outline-secondary ms-2" href="{% url 'budgeting:expense_edit' v.id %}">Edit</a>
+                      <a class="btn btn-sm btn-outline-info" href="{% url 'budgeting:expense_toggle_type' v.id %}" title="Change to Recurring">⇄</a>
+                    {% endif %}
+                </span>
               </li>
             {% empty %}
               <li class="list-group-item">None</li>

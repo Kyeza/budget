@@ -3,21 +3,15 @@ from django.contrib import admin
 from .models import (
     MonthBudget,
     MonthCategory,
-    MonthRecurringExpense,
-    MonthVariableExpense,
+    MonthExpense,
     RecurringExpenseTemplate,
     ForecastOverride,
     MonthStatus,
 )
 
 
-class MonthRecurringExpenseInline(admin.TabularInline):
-    model = MonthRecurringExpense
-    extra = 0
-
-
-class MonthVariableExpenseInline(admin.TabularInline):
-    model = MonthVariableExpense
+class MonthExpenseInline(admin.TabularInline):
+    model = MonthExpense
     extra = 0
 
 
@@ -26,6 +20,7 @@ class MonthCategoryAdmin(admin.ModelAdmin):
     list_display = ("name", "month_budget", "sort_order")
     list_filter = ("month_budget",)
     search_fields = ("name",)
+    inlines = [MonthExpenseInline]
 
 
 @admin.register(MonthBudget)
@@ -36,17 +31,10 @@ class MonthBudgetAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at", "updated_at")
 
 
-@admin.register(MonthRecurringExpense)
-class MonthRecurringExpenseAdmin(admin.ModelAdmin):
-    list_display = ("name", "amount", "enabled", "month_category")
-    list_filter = ("enabled", "month_category__month_budget")
-    search_fields = ("name",)
-
-
-@admin.register(MonthVariableExpense)
-class MonthVariableExpenseAdmin(admin.ModelAdmin):
-    list_display = ("name", "amount", "date", "month_category")
-    list_filter = ("month_category__month_budget",)
+@admin.register(MonthExpense)
+class MonthExpenseAdmin(admin.ModelAdmin):
+    list_display = ("name", "amount", "expense_type", "enabled", "month_category")
+    list_filter = ("expense_type", "enabled", "month_category__month_budget")
     search_fields = ("name",)
 
 

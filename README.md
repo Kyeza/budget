@@ -9,8 +9,8 @@ A robust, production-ready Django web application for personal budgeting. This a
 ## ✨ Features
 
 - **📂 Month-Specific Versioning**: Edit, add, or delete categories for a specific month without affecting historical data.
-- **🔄 Monthly Recurring Expenses**: Grouped by categories and seeded from global templates.
-- **💸 Variable Expense Tracking**: Easily add ad-hoc expenses for any month.
+- **🔄 Smart Item Carry-over**: All expenses (both recurring and variable) are carried forward to new months by default, preserving your budget structure.
+- **⚡ Flexible Budget Items**: Convert any expense between recurring and variable types on the fly while the month is open.
 - **📊 Real-time Dashboard**: 
   - 6-month historical trends.
   - Category breakdown (recurring vs variable).
@@ -23,6 +23,7 @@ A robust, production-ready Django web application for personal budgeting. This a
 
 To prevent retroactive changes, the app uses a **snapshotting** approach:
 - `MonthCategory` is tied to a `MonthBudget`. When a new month is created, the category structure is cloned from the most recent month.
+- `MonthExpense` items are also cloned. Recurring items maintain their status, while variable items are reset to the new month's baseline.
 - This design ensures that renaming or reordering categories in "February" does not change how "January" looks.
 - Deleting a category for a month requires reassigning its expenses to another category in that same month, ensuring data integrity.
 

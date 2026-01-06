@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from django import forms
 
-from .models import MonthBudget, MonthVariableExpense, MonthRecurringExpense, MonthCategory, MonthStatus
+from .models import MonthBudget, MonthExpense, MonthCategory, MonthStatus, ExpenseType
 
 
 class MonthBudgetIncomeForm(forms.ModelForm):
@@ -18,10 +18,10 @@ class MonthBudgetIncomeForm(forms.ModelForm):
         return cleaned
 
 
-class VariableExpenseForm(forms.ModelForm):
+class MonthExpenseForm(forms.ModelForm):
     class Meta:
-        model = MonthVariableExpense
-        fields = ["month_category", "name", "amount", "date", "notes"]
+        model = MonthExpense
+        fields = ["month_category", "name", "amount", "expense_type", "date", "enabled", "notes"]
 
     def __init__(self, *args, **kwargs):
         month_budget = kwargs.pop("month_budget", None)
@@ -29,17 +29,17 @@ class VariableExpenseForm(forms.ModelForm):
         if month_budget:
             self.fields["month_category"].queryset = MonthCategory.objects.filter(month_budget=month_budget)
 
+        if self.instance and self.instance.pk:
+            mb = self.instance.month_category.month_budget
+            if mb.status == MonthStatus.CLOSED:
+                for field in self.fields:
+                    self.fields[field].disabled = True
+
     def clean_amount(self):
         amt = self.cleaned_data.get("amount")
         if amt is None:
             return amt
         return Decimal(amt).quantize(Decimal("0.01"))
-
-
-class RecurringExpenseForm(forms.ModelForm):
-    class Meta:
-        model = MonthRecurringExpense
-        fields = ["amount", "enabled", "notes"]
 
 
 class MonthCategoryForm(forms.ModelForm):

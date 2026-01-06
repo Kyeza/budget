@@ -15,6 +15,11 @@ class MonthStatus(models.TextChoices):
     CLOSED = "closed", "Closed"
 
 
+class ExpenseType(models.TextChoices):
+    RECURRING = "recurring", "Recurring"
+    VARIABLE = "variable", "Variable"
+
+
 class ClosedMonthGuardMixin(models.Model):
     """
     Mixin to prevent modifications to budget-affecting models when the month is closed.
@@ -103,7 +108,7 @@ class MonthBudget(models.Model):
     @property
     def total_recurring(self) -> Decimal:
         return (
-            self.monthrecurringexpense_set.filter(enabled=True)
+            self.monthexpense_set.filter(enabled=True, expense_type=ExpenseType.RECURRING)
             .aggregate(s=models.Sum("amount"))
             .get("s")
             or Decimal("0")
@@ -112,7 +117,7 @@ class MonthBudget(models.Model):
     @property
     def total_variable(self) -> Decimal:
         return (
-            MonthVariableExpense.objects.filter(month_category__month_budget=self)
+            self.monthexpense_set.filter(expense_type=ExpenseType.VARIABLE)
             .aggregate(s=models.Sum("amount"))
             .get("s")
             or Decimal("0")
@@ -144,36 +149,30 @@ class MonthCategory(ClosedMonthGuardMixin):
         return f"{self.name} ({self.month_budget})"
 
 
-class MonthRecurringExpense(ClosedMonthGuardMixin):
+class MonthExpense(ClosedMonthGuardMixin):
     month_budget = models.ForeignKey(MonthBudget, on_delete=models.CASCADE, null=True)
     month_category = models.ForeignKey(MonthCategory, on_delete=models.CASCADE)
     name = models.CharField(max_length=200)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
-    enabled = models.BooleanField(default=True)
-    template = models.ForeignKey(RecurringExpenseTemplate, null=True, blank=True, on_delete=models.SET_NULL)
-    notes = models.TextField(blank=True)
-
-    class Meta:
-        ordering = ["month_category__sort_order", "name"]
-
-    def __str__(self):
-        return f"{self.name} (£{self.amount:,.2f})"
-
-
-class MonthVariableExpense(ClosedMonthGuardMixin):
-    month_category = models.ForeignKey(MonthCategory, on_delete=models.CASCADE)
-    name = models.CharField(max_length=200)
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    expense_type = models.CharField(
+        max_length=10,
+        choices=ExpenseType.choices,
+        default=ExpenseType.RECURRING
+    )
     date = models.DateField(null=True, blank=True)
     notes = models.TextField(blank=True)
+    enabled = models.BooleanField(default=True)
+    template = models.ForeignKey(RecurringExpenseTemplate, null=True, blank=True, on_delete=models.SET_NULL)
 
     class Meta:
-        indexes = [models.Index(fields=["month_category", "date"])]
-        ordering = ["-date", "name"]
+        ordering = ["month_category__sort_order", "expense_type", "name"]
+
+    def __str__(self):
+        return f"{self.name} (£{self.amount:,.2f}) [{self.get_expense_type_display()}]"
 
     def clean(self):
-        if not self.date:
-            # Default to the month date
+        if self.expense_type == ExpenseType.VARIABLE and not self.date:
+            # Default to the month date for variable expenses if not provided
             self.date = self.month_category.month_budget.month
         return super().clean()
 
@@ -194,9 +193,11 @@ def create_month_with_defaults(
     user=None,
     carry_forward_income: bool = True,
 ) -> MonthBudget:
-    """Create a MonthBudget, copy last month categories, and seed recurring items from templates.
-
+    """Create a MonthBudget, copy last month categories, and seed items.
+    
     If a month already exists, returns it.
+    If a previous month exists, it clones categories and ALL expenses (recurring and variable).
+    If no previous month exists, it seeds from RecurringExpenseTemplate.
     """
     month = month.replace(day=1)
     mb, created = MonthBudget.objects.get_or_create(user=user, month=month)
@@ -218,31 +219,50 @@ def create_month_with_defaults(
             name_to_cat[cat.name] = MonthCategory.objects.create(
                 month_budget=mb, name=cat.name, sort_order=cat.sort_order
             )
+        
+        # Clone all items from previous month (both recurring and variable by default)
+        for item in MonthExpense.objects.filter(month_budget=prev):
+            cat = name_to_cat.get(item.month_category.name)
+            if cat:
+                MonthExpense.objects.create(
+                    month_budget=mb,
+                    month_category=cat,
+                    name=item.name,
+                    amount=item.amount,
+                    expense_type=item.expense_type,
+                    notes=item.notes,
+                    enabled=item.enabled,
+                    template=item.template,
+                    # Reset date to the new month if it's a variable expense
+                    date=mb.month if item.expense_type == ExpenseType.VARIABLE else None
+                )
 
-    # Seed from templates
-    templates = RecurringExpenseTemplate.objects.filter(active=True, user=user)
-    # Ensure categories for each template exist
-    for t in templates:
-        cat = name_to_cat.get(t.default_category_name)
-        if not cat:
-            # Create at the end
-            max_order = (
-                MonthCategory.objects.filter(month_budget=mb).aggregate(m=models.Max("sort_order")).get("m")
-                or 0
-            )
-            cat = MonthCategory.objects.create(
+    else:
+        # Seed from templates ONLY if no previous month exists
+        templates = RecurringExpenseTemplate.objects.filter(active=True, user=user)
+        # Ensure categories for each template exist
+        for t in templates:
+            cat = name_to_cat.get(t.default_category_name)
+            if not cat:
+                # Create at the end
+                max_order = (
+                    MonthCategory.objects.filter(month_budget=mb).aggregate(m=models.Max("sort_order")).get("m")
+                    or 0
+                )
+                cat = MonthCategory.objects.create(
+                    month_budget=mb,
+                    name=t.default_category_name,
+                    sort_order=max_order + 10,
+                )
+                name_to_cat[t.default_category_name] = cat
+            MonthExpense.objects.create(
                 month_budget=mb,
-                name=t.default_category_name,
-                sort_order=max_order + 10,
+                month_category=cat,
+                name=t.name,
+                amount=t.default_amount,
+                expense_type=ExpenseType.RECURRING,
+                template=t,
             )
-            name_to_cat[t.default_category_name] = cat
-        MonthRecurringExpense.objects.create(
-            month_budget=mb,
-            month_category=cat,
-            name=t.name,
-            amount=t.default_amount,
-            template=t,
-        )
 
     return mb
 
@@ -260,10 +280,11 @@ def trailing_average_variable(user, up_to_month: date, category_name: str, month
     """Compute trailing average of variable spend for a named category up to (but not including) a month."""
     up_to = up_to_month.replace(day=1)
     qs = (
-        MonthVariableExpense.objects.filter(
+        MonthExpense.objects.filter(
             month_category__month_budget__user=user,
             month_category__name=category_name,
             month_category__month_budget__month__lt=up_to,
+            expense_type=ExpenseType.VARIABLE,
         )
         .values("month_category__month_budget__month")
         .annotate(total=models.Sum("amount"))
@@ -281,7 +302,7 @@ def forecast_months(user, start_month: date, horizon: int = 3) -> list[ForecastR
     latest = MonthBudget.objects.filter(user=user, month__lte=start).order_by("-month").first()
     recurring_by_cat: dict[str, Decimal] = {}
     if latest:
-        for r in latest.monthrecurringexpense_set.filter(enabled=True):
+        for r in latest.monthexpense_set.filter(enabled=True, expense_type=ExpenseType.RECURRING):
             recurring_by_cat[r.month_category.name] = recurring_by_cat.get(r.month_category.name, Decimal("0")) + r.amount
     results: list[ForecastResult] = []
     for i in range(horizon):
