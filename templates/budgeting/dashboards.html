@@ -1,4 +1,5 @@
 {% extends 'budgeting/base.html' %}
+{% load humanize %}
 {% block content %}
 <h1>Dashboards</h1>
 
@@ -13,11 +14,11 @@
   {% for t in trend %}
     <tr>
       <td>{{ t.month }}</td>
-      <td>£{{ t.income }}</td>
-      <td>£{{ t.recurring }}</td>
-      <td>£{{ t.variable }}</td>
-      <td>£{{ t.total }}</td>
-      <td>£{{ t.balance }}</td>
+      <td>£{{ t.income|floatformat:2|intcomma }}</td>
+      <td>£{{ t.recurring|floatformat:2|intcomma }}</td>
+      <td>£{{ t.variable|floatformat:2|intcomma }}</td>
+      <td>£{{ t.total|floatformat:2|intcomma }}</td>
+      <td>£{{ t.balance|floatformat:2|intcomma }}</td>
     </tr>
   {% empty %}
     <tr><td colspan="6" class="text-center">No data yet</td></tr>
@@ -32,7 +33,7 @@
         {% for item in top_variable %}
             <li class="list-group-item d-flex justify-content-between">
                 {{ item.name }}
-                <strong>£{{ item.total }}</strong>
+                <strong>£{{ item.total|floatformat:2|intcomma }}</strong>
             </li>
         {% empty %}
             <li class="list-group-item">No data yet</li>
@@ -49,9 +50,9 @@
             {% for c in category_breakdown %}
                 <tr>
                     <td>{{ c.name }}</td>
-                    <td>£{{ c.recurring }}</td>
-                    <td>£{{ c.variable }}</td>
-                    <td>£{{ c.total }}</td>
+                    <td>£{{ c.recurring|floatformat:2|intcomma }}</td>
+                    <td>£{{ c.variable|floatformat:2|intcomma }}</td>
+                    <td>£{{ c.total|floatformat:2|intcomma }}</td>
                 </tr>
             {% endfor %}
             </tbody>
@@ -70,10 +71,10 @@
   {% for f in forecast %}
     <tr>
       <td>{{ f.month|date:'Y-m' }}</td>
-      <td>£{{ f.recurring_total }}</td>
-      <td>£{{ f.variable_estimate }}</td>
-      <td>£{{ f.total_expenses }}</td>
-      <td>£{{ f.balance }}</td>
+      <td>£{{ f.recurring_total|floatformat:2|intcomma }}</td>
+      <td>£{{ f.variable_estimate|floatformat:2|intcomma }}</td>
+      <td>£{{ f.total_expenses|floatformat:2|intcomma }}</td>
+      <td>£{{ f.balance|floatformat:2|intcomma }}</td>
     </tr>
   {% empty %}
     <tr><td colspan="5" class="text-center">No forecast available</td></tr>

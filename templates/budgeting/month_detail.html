@@ -1,4 +1,5 @@
 {% extends 'budgeting/base.html' %}
+{% load humanize %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1>Month {{ month }}</h1>
@@ -24,7 +25,7 @@
             <button class="btn btn-primary" type="submit">Update Income</button>
           </form>
         {% else %}
-          <p>£{{ month.net_income }}</p>
+          <p>£{{ month.net_income|floatformat:2|intcomma }}</p>
         {% endif %}
       </div>
     </div>
@@ -34,10 +35,10 @@
       <div class="card-body">
         <h5 class="card-title">Totals</h5>
         <div class="row">
-          <div class="col">Recurring: <strong>£{{ month.total_recurring }}</strong></div>
-          <div class="col">Variable: <strong>£{{ month.total_variable }}</strong></div>
-          <div class="col">Total: <strong>£{{ month.total_expenses }}</strong></div>
-          <div class="col">Balance: <strong>£{{ month.balance }}</strong></div>
+          <div class="col">Recurring: <strong>£{{ month.total_recurring|floatformat:2|intcomma }}</strong></div>
+          <div class="col">Variable: <strong>£{{ month.total_variable|floatformat:2|intcomma }}</strong></div>
+          <div class="col">Total: <strong>£{{ month.total_expenses|floatformat:2|intcomma }}</strong></div>
+          <div class="col">Balance: <strong>£{{ month.balance|floatformat:2|intcomma }}</strong></div>
         </div>
       </div>
     </div>
@@ -54,7 +55,7 @@
           <a href="{% url 'budgeting:category_delete' row.category.id %}" class="btn btn-sm btn-link py-0 text-danger">Delete</a>
         {% endif %}
       </div>
-      <span>Recurring £{{ row.recurring_total }} | Variable £{{ row.variable_total }}</span>
+      <span>Recurring £{{ row.recurring_total|floatformat:2|intcomma }} | Variable £{{ row.variable_total|floatformat:2|intcomma }}</span>
     </div>
     <div class="card-body">
       <div class="row">
@@ -65,7 +66,7 @@
               <li class="list-group-item d-flex justify-content-between align-items-center">
                 {{ r.name }}
                 <span>
-                  £{{ r.amount }}
+                  £{{ r.amount|floatformat:2|intcomma }}
                   {% if month.status == 'open' %}
                     <a class="btn btn-sm btn-outline-secondary ms-2" href="{% url 'budgeting:recurring_edit' r.id %}">Edit</a>
                   {% endif %}
@@ -82,7 +83,7 @@
             {% for v in row.variable %}
               <li class="list-group-item d-flex justify-content-between align-items-center">
                 <span>{{ v.date }} — {{ v.name }}</span>
-                <span>£{{ v.amount }}</span>
+                <span>£{{ v.amount|floatformat:2|intcomma }}</span>
               </li>
             {% empty %}
               <li class="list-group-item">None</li>

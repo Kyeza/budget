@@ -68,7 +68,7 @@ class RecurringExpenseTemplate(models.Model):
         ordering = ["name"]
 
     def __str__(self):
-        return f"{self.name} (£{self.default_amount})"
+        return f"{self.name} (£{self.default_amount:,.2f})"
 
 
 class MonthBudget(models.Model):
@@ -157,7 +157,7 @@ class MonthRecurringExpense(ClosedMonthGuardMixin):
         ordering = ["month_category__sort_order", "name"]
 
     def __str__(self):
-        return f"{self.name} (£{self.amount})"
+        return f"{self.name} (£{self.amount:,.2f})"
 
 
 class MonthVariableExpense(ClosedMonthGuardMixin):
